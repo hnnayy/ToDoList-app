@@ -1,0 +1,180 @@
+/* General body */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f7ece7;
+    color: #ad495d;
+    margin: 0;
+    padding: 0;
+}
+
+/* Navbar */
+.navbar {
+    background-color: #c2556a;
+    color: #ad495d;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.navbar-start a,
+.navbar-end a,
+.navbar-end span {
+    color: #ad495d;
+    text-decoration: none;
+}
+
+.navbar-start a:hover,
+.navbar-end a:hover {
+    color: #6a1a2a;
+}
+
+.btn-ghost {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+}
+
+.btn-ghost.text-xl {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.navbar-end {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+/* Home page */
+.home-section {
+    width: fit-content;
+    max-width: 90%;
+    margin: 5rem auto 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+}
+
+.home-title {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.home-subtitle {
+    font-size: 1.5rem;
+    font-weight: 300;
+}
+
+.home-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.home-button {
+    background-color: #c2556a;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 20px;
+    font-size: 1.1rem;
+    font-weight: 300;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.home-button:hover {
+    transform: scale(1.1);
+    background-color: #6a1a2a;
+}
+
+.home-button.neutral {
+    background-color: #000000;
+}
+
+.home-button.neutral:hover {
+    background-color: #333333;
+}
+
+/* Flash messages */
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    margin-top: 3rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width: 384px;
+    max-width: 90vw;
+    position: relative;
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.alert svg {
+    flex-shrink: 0;
+    height: 24px;
+    width: 24px;
+}
+
+.alert span {
+    flex-grow: 1;
+    color: inherit;
+}
+
+.alert button {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    transition: color 0.3s ease;
+}
+
+.alert button:hover {
+    color: #6a1a2a;
+}
+
+.alert-error {
+    background-color: #f19cb2;
+    color: #6a1a2a;
+    border: 2px solid #ad495d;
+}
+
+.alert-success {
+    background-color: #b3d4a5;
+    color: #2f5233;
+    border: 2px solid #6a8a36;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sample transition class from base.html */
+.sample-transition {
+    transition: background-color 0.3s ease;
+}

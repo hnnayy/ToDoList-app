@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Enter Task{% endblock %}
+
+{% block content %}
+<div class="todo-container">
+    <div class="todo-header">
+        <h1 class="home-title" style="font-size: 2rem; margin-bottom: 2rem;">Enter Task</h1>
+    </div>
+
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body">
+            <form class="form" action="" method="post" hx-swap="transition:true">
+                <div class="form-group">
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required autofocus
+                           minlength="3" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="6" 
+                              style="resize: vertical; min-height: 120px;"></textarea>
+                </div>
+                <div class="form-actions">
+                    <a href="{{ url_for('todo_views.index') }}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

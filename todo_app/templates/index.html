@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="home-section">
+    <h1 class="home-title">Welcome to our TodoList !!</h1>
+    <p class="home-subtitle">
+        Pembuatan website To Do List Untuk Tubes Devops 
+    </p>
+    {% if not g.user %}
+    <hr class="divider">
+    <p class="home-note">Kelompok 5</p>
+    <footer class="home-footer">
+        <a href="{{ url_for('auth_views.login') }}" class="home-button">Log In</a>
+        <a href="{{ url_for('auth_views.register') }}" class="home-button neutral">Sign Up</a>
+    </footer>
+    {% endif %}
+</section>
+{% endblock %}

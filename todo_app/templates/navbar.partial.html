@@ -1,0 +1,27 @@
+<nav class="navbar">
+    <div class="navbar-start">
+        <a hx-swap="transition:true" href="{{ url_for('index') }}">
+            Todo List
+        </a>
+    </div>
+    <div class="navbar-end">
+        {% if g.user %}
+        <span>
+            {{ g.user.username }}
+        </span>
+        <a hx-swap="transition:true" href="{{ url_for('todo_views.index') }}">
+            Tasks
+        </a>
+        <a hx-swap="transition:true" href="{{ url_for('auth_views.logout') }}">
+            Logout
+        </a>
+        {% else %}
+        <a hx-swap="transition:true" href="{{ url_for('auth_views.register') }}">
+            Register
+        </a>
+        <a hx-swap="transition:true" href="{{ url_for('auth_views.login') }}">
+            Login
+        </a>
+        {% endif %}
+    </div>
+</nav>

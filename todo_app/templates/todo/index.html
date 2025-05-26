@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}My Tasks List{% endblock %}
+
+{% block content %}
+<div class="todo-container">
+    <div class="todo-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ad495d; padding-bottom: 1rem; margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: bold; color: #ad495d; margin: 0;">My Tasks List</h1>
+        <a hx-swap="transition:true" class="btn btn-primary btn-small" href="{{ url_for('todo_views.create') }}">
+            New Task
+        </a>
+    </div>
+
+    <div class="todo-table-container" style="background-color: #f19cb2; border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background-color: #c2556a; color: white;">
+                <tr>
+                    <th style="padding: 1rem; text-align: left; font-weight: 600;">ID</th>
+                    <th style="padding: 1rem; text-align: left; font-weight: 600;">Task</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600;">Status</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if todos and todos|length > 0 %}
+                    {% for todo in todos %}
+                    <tr style="border-bottom: 1px solid rgba(173, 73, 93, 0.2); {% if loop.index % 2 == 0 %}background-color: rgba(255, 255, 255, 0.1);{% endif %}">
+                        <td style="padding: 1rem; color: #6a1a2a; font-weight: 600;">#{{ todo.id }}</td>
+                        <td style="padding: 1rem; color: #6a1a2a;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">{{ todo.title }}</div>
+                            {% if todo.description %}
+                            <div style="font-size: 0.875rem; color: #ad495d; opacity: 0.8;">{{ todo.description[:50] }}{% if todo.description|length > 50 %}...{% endif %}</div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem; text-align: center; font-size: 1.5rem;">
+                            {% if todo.status %}
+                                ✅
+                            {% else %}
+                                ❌
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                <a hx-swap="transition:true" href="{{ url_for('todo_views.update', id = todo.id) }}" 
+                                   class="btn btn-primary btn-small">
+                                    Edit
+                                </a>
+                                <button hx-delete="{{ url_for('todo_views.delete', id = todo.id) }}"
+                                        hx-confirm="Are you sure you want to delete the task with ID #{{ todo.id }}?"
+                                        hx-swap="outerHTML" hx-target="closest tr" 
+                                        class="btn btn-secondary btn-small" 
+                                        style="background-color: #dc3545; color: white;">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" style="padding: 3rem; text-align: center; color: #6a1a2a; font-style: italic;">
+                            <div style="font-size: 1.2rem; margin-bottom: 1rem;">📝</div>
+                            <div>You don't have any tasks yet!</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.5rem;">Click "New Task" to get started.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
