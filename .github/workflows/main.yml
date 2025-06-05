@@ -1,0 +1,42 @@
+name: CI/CD Pipeline
+
+on: [push]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Unit Tests
+        run: pytest tests/
+
+      - name: Run SAST Scan (Bandit)
+        run: |
+          pip install bandit
+          bandit -r todo_app/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v3
+        with:
+          push: false
+          tags: todolist-app:latest
+
+      - name: Deploy to Staging
+        if: success()
+        run: |
+          echo "Deploy ke staging environment disini"
