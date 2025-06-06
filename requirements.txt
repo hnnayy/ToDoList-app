@@ -9,3 +9,9 @@ MarkupSafe==2.1.3
 SQLAlchemy==2.0.23
 typing_extensions==4.8.0
 Werkzeug==3.0.1
+# Existing dependencies...
+# Add these for security
+werkzeug==2.3.7
+flask==2.3.3
+bcrypt==4.0.1
+flask-limiter==3.5.0

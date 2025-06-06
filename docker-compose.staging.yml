@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  web:
+    image: todolist-app:staging-latest
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///data/todolist.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - staging_data:/app/data
+      - staging_logs:/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.staging.conf:/etc/nginx/nginx.conf
+      - staging_ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+    restart: always
+
+volumes:
+  staging_data:
+  staging_logs:
+  staging_ssl:
