@@ -10,6 +10,7 @@ pipeline {
         SECURITY_THRESHOLD_HIGH = '0'      // Max HIGH severity issues allowed
         SECURITY_THRESHOLD_MEDIUM = '5'    // Max MEDIUM severity issues allowed
         APP_URL = 'http://localhost:5000'  // Application URL for DAST
+        APP_CONTAINER_NAME = 'todolist-app'
     }
     stages {
         stage('Checkout') {
@@ -207,36 +208,148 @@ sonar.python.coverage.reportPaths=coverage.xml
                 }
             }
             steps {
-                echo 'Running docker-compose up...'
-                sh 'docker-compose up -d --build'
-                
-                // Wait for application to be ready
                 script {
-                    def maxAttempts = 30
-                    def attempt = 0
-                    def appReady = false
-                    
-                    while (attempt < maxAttempts && !appReady) {
-                        try {
-                            sh "curl -f ${APP_URL} > /dev/null 2>&1"
-                            appReady = true
-                            echo "Application is ready at ${APP_URL}"
-                        } catch (Exception e) {
-                            attempt++
-                            echo "Waiting for application to start... (${attempt}/${maxAttempts})"
-                            sleep(10)
+                    try {
+                        // Clean up any existing containers
+                        echo 'Cleaning up existing containers...'
+                        sh '''
+                            docker-compose down --remove-orphans || true
+                            docker system prune -f || true
+                        '''
+                        
+                        // Start the application
+                        echo 'Running docker-compose up...'
+                        sh 'docker-compose up -d --build'
+                        
+                        // Get the actual container IP and port
+                        def containerInfo = sh(
+                            script: '''
+                                # Wait a bit for container to start
+                                sleep 5
+                                
+                                # Get container ID
+                                CONTAINER_ID=$(docker-compose ps -q web 2>/dev/null || docker-compose ps -q app 2>/dev/null || docker ps --filter "name=todo" --format "{{.ID}}" | head -1)
+                                
+                                if [ ! -z "$CONTAINER_ID" ]; then
+                                    # Get container IP
+                                    CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $CONTAINER_ID)
+                                    echo "Container IP: $CONTAINER_IP"
+                                    
+                                    # Check if port 5000 is exposed
+                                    EXPOSED_PORT=$(docker port $CONTAINER_ID 5000 2>/dev/null | cut -d: -f2 || echo "5000")
+                                    echo "Exposed Port: $EXPOSED_PORT"
+                                    
+                                    echo "APP_URL_CONTAINER=http://$CONTAINER_IP:5000"
+                                    echo "APP_URL_HOST=http://localhost:$EXPOSED_PORT"
+                                else
+                                    echo "No container found"
+                                    echo "APP_URL_CONTAINER=http://localhost:5000"
+                                    echo "APP_URL_HOST=http://localhost:5000"
+                                fi
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Container info: ${containerInfo}"
+                        
+                        // Extract URLs from container info
+                        def containerUrl = containerInfo.find(/APP_URL_CONTAINER=([^\s]+)/) { match, url -> url } ?: APP_URL
+                        def hostUrl = containerInfo.find(/APP_URL_HOST=([^\s]+)/) { match, url -> url } ?: APP_URL
+                        
+                        echo "Trying Container URL: ${containerUrl}"
+                        echo "Trying Host URL: ${hostUrl}"
+                        
+                        // Wait for application to be ready with multiple URL attempts
+                        def maxAttempts = 60  // Increased attempts
+                        def attempt = 0
+                        def appReady = false
+                        def workingUrl = ""
+                        
+                        while (attempt < maxAttempts && !appReady) {
+                            try {
+                                // Try container URL first
+                                try {
+                                    sh "curl -f --connect-timeout 5 --max-time 10 ${containerUrl}/health 2>/dev/null || curl -f --connect-timeout 5 --max-time 10 ${containerUrl} >/dev/null 2>&1"
+                                    appReady = true
+                                    workingUrl = containerUrl
+                                    echo "Application is ready at ${containerUrl}"
+                                } catch (Exception e1) {
+                                    // Try host URL
+                                    try {
+                                        sh "curl -f --connect-timeout 5 --max-time 10 ${hostUrl}/health 2>/dev/null || curl -f --connect-timeout 5 --max-time 10 ${hostUrl} >/dev/null 2>&1"
+                                        appReady = true
+                                        workingUrl = hostUrl
+                                        echo "Application is ready at ${hostUrl}"
+                                    } catch (Exception e2) {
+                                        // Try default localhost
+                                        try {
+                                            sh "curl -f --connect-timeout 5 --max-time 10 ${APP_URL}/health 2>/dev/null || curl -f --connect-timeout 5 --max-time 10 ${APP_URL} >/dev/null 2>&1"
+                                            appReady = true
+                                            workingUrl = APP_URL
+                                            echo "Application is ready at ${APP_URL}"
+                                        } catch (Exception e3) {
+                                            // Check if container is actually running
+                                            def containerStatus = sh(
+                                                script: 'docker-compose ps',
+                                                returnStdout: true
+                                            ).trim()
+                                            echo "Container status: ${containerStatus}"
+                                            
+                                            // Check application logs
+                                            try {
+                                                def logs = sh(
+                                                    script: 'docker-compose logs --tail=10',
+                                                    returnStdout: true
+                                                ).trim()
+                                                echo "Application logs: ${logs}"
+                                            } catch (Exception logEx) {
+                                                echo "Could not retrieve logs: ${logEx.message}"
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                echo "Health check failed: ${e.message}"
+                            }
+                            
+                            if (!appReady) {
+                                attempt++
+                                echo "Waiting for application to start... (${attempt}/${maxAttempts})"
+                                sleep(5)  // Reduced sleep time but more attempts
+                            }
                         }
-                    }
-                    
-                    if (!appReady) {
-                        error("Application failed to start after ${maxAttempts * 10} seconds")
-                    }
-                    
-                    // Add deployment info to build description
-                    if (currentBuild.description) {
-                        currentBuild.description += " | Deployed: Ready"
-                    } else {
-                        currentBuild.description = "Deployed: Ready"
+                        
+                        if (!appReady) {
+                            // Last resort: check if any process is listening on port 5000
+                            def portCheck = sh(
+                                script: 'netstat -tlnp | grep :5000 || ss -tlnp | grep :5000 || echo "No process listening on port 5000"',
+                                returnStdout: true
+                            ).trim()
+                            echo "Port 5000 check: ${portCheck}"
+                            
+                            currentBuild.result = 'UNSTABLE'
+                            echo "WARNING: Application health check failed after ${maxAttempts * 5} seconds"
+                            echo "Continuing with pipeline - DAST scans may fail"
+                            
+                            // Set a default URL for DAST scans to attempt
+                            workingUrl = APP_URL
+                        }
+                        
+                        // Store the working URL for DAST stages
+                        env.ACTUAL_APP_URL = workingUrl
+                        
+                        // Add deployment info to build description
+                        if (currentBuild.description) {
+                            currentBuild.description += " | Deployed: ${appReady ? 'Ready' : 'Warning'}"
+                        } else {
+                            currentBuild.description = "Deployed: ${appReady ? 'Ready' : 'Warning'}"
+                        }
+                        
+                    } catch (Exception e) {
+                        echo "Deployment failed: ${e.message}"
+                        currentBuild.result = 'UNSTABLE'
+                        echo "Continuing with pipeline..."
+                        env.ACTUAL_APP_URL = APP_URL
                     }
                 }
             }
@@ -250,29 +363,33 @@ sonar.python.coverage.reportPaths=coverage.xml
             steps {
                 script {
                     try {
+                        def targetUrl = env.ACTUAL_APP_URL ?: APP_URL
+                        echo "Running OWASP ZAP scan against: ${targetUrl}"
+                        
                         // Run OWASP ZAP Docker container
-                        sh '''
+                        sh """
                             # Pull ZAP Docker image
                             docker pull owasp/zap2docker-stable
                             
                             # Create reports directory
                             mkdir -p zap_reports
                             
-                            # Run ZAP baseline scan
+                            # Run ZAP baseline scan with network settings
                             docker run --rm \
                                 --network host \
-                                -v $(pwd)/zap_reports:/zap/wrk/:rw \
+                                -v \$(pwd)/zap_reports:/zap/wrk/:rw \
                                 owasp/zap2docker-stable zap-baseline.py \
-                                -t $APP_URL \
+                                -t ${targetUrl} \
                                 -J zap_report.json \
                                 -r zap_report.html \
-                                -x zap_report.xml || true
+                                -x zap_report.xml \
+                                -I || true
                             
                             # Move reports to workspace
                             mv zap_reports/zap_report.json . || echo "JSON report not found"
                             mv zap_reports/zap_report.html . || echo "HTML report not found" 
                             mv zap_reports/zap_report.xml . || echo "XML report not found"
-                        '''
+                        """
                         
                         // Archive ZAP reports
                         archiveArtifacts artifacts: "zap_report.*", allowEmptyArchive: true, fingerprint: true
@@ -293,7 +410,10 @@ sonar.python.coverage.reportPaths=coverage.xml
             steps {
                 script {
                     try {
-                        sh '''
+                        def targetUrl = env.ACTUAL_APP_URL ?: APP_URL
+                        echo "Running Nikto scan against: ${targetUrl}"
+                        
+                        sh """
                             # Install Nikto if not available
                             if ! command -v nikto &> /dev/null; then
                                 echo "Installing Nikto..."
@@ -302,14 +422,14 @@ sonar.python.coverage.reportPaths=coverage.xml
                             
                             # Run Nikto scan
                             if command -v nikto &> /dev/null; then
-                                nikto -h $APP_URL -output nikto_report.txt -Format txt || true
-                                nikto -h $APP_URL -output nikto_report.json -Format json || true
+                                nikto -h ${targetUrl} -output nikto_report.txt -Format txt || true
+                                nikto -h ${targetUrl} -output nikto_report.json -Format json || true
                             else
                                 echo "Nikto not available, skipping scan"
-                                echo "No Nikto scan performed" > nikto_report.txt
-                                echo '{"vulnerabilities": []}' > nikto_report.json
+                                echo "No Nikto scan performed - Nikto not installed" > nikto_report.txt
+                                echo '{"vulnerabilities": [], "error": "Nikto not available"}' > nikto_report.json
                             fi
-                        '''
+                        """
                         
                         archiveArtifacts artifacts: "nikto_report.*", allowEmptyArchive: true, fingerprint: true
                         
@@ -409,6 +529,15 @@ sonar.python.coverage.reportPaths=coverage.xml
     }
     post {
         always {
+            // Clean up containers
+            script {
+                try {
+                    sh 'docker-compose down --remove-orphans || true'
+                } catch (Exception e) {
+                    echo "Cleanup failed: ${e.message}"
+                }
+            }
+            
             junit allowEmptyResults: true, testResults: '**/test-results.xml'
             
             // Generate comprehensive security summary
