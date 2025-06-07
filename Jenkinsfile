@@ -4,7 +4,6 @@ pipeline {
         VENV = 'venv'
         BANDIT_REPORT = 'bandit_report.txt'
         BANDIT_JSON_REPORT = 'bandit_report.json'
-        SONARQUBE_REPORT = 'sonarqube_report.json'
         ZAP_REPORT = 'zap_report.html'
         ZAP_JSON_REPORT = 'zap_report.json'
         SECURITY_THRESHOLD_HIGH = '0'      // Max HIGH severity issues allowed
@@ -39,52 +38,6 @@ pipeline {
                 
                 // Archive reports
                 archiveArtifacts artifacts: "$BANDIT_REPORT,$BANDIT_JSON_REPORT", fingerprint: true
-            }
-        }
-        stage('SAST - SonarQube Analysis') {
-            steps {
-                script {
-                    try {
-                        // Install sonar-scanner if not available
-                        sh '''
-                            if ! command -v sonar-scanner &> /dev/null; then
-                                echo "Installing SonarQube Scanner..."
-                                wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
-                                unzip -q sonar-scanner-cli-4.8.0.2856-linux.zip
-                                export PATH=$PATH:$(pwd)/sonar-scanner-4.8.0.2856-linux/bin
-                            fi
-                        '''
-                        
-                        // Create sonar-project.properties if not exists
-                        writeFile file: 'sonar-project.properties', text: '''
-sonar.projectKey=todolist-app
-sonar.projectName=ToDoList Application
-sonar.projectVersion=1.0
-sonar.sources=todo_app
-sonar.tests=tests
-sonar.language=py
-sonar.sourceEncoding=UTF-8
-sonar.python.coverage.reportPaths=coverage.xml
-                        '''
-                        
-                        // Run SonarQube analysis (skip if no server configured)
-                        sh '''
-                            if [ -n "$SONAR_HOST_URL" ]; then
-                                ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner || echo "SonarQube analysis failed, continuing..."
-                            else
-                                echo "SonarQube server not configured, skipping analysis"
-                                echo '{"issues": []}' > $SONARQUBE_REPORT
-                            fi
-                        '''
-                        
-                    } catch (Exception e) {
-                        echo "SonarQube analysis failed: ${e.message}"
-                        echo "Continuing with pipeline..."
-                        writeFile file: env.SONARQUBE_REPORT, text: '{"issues": []}'
-                    }
-                }
-                
-                archiveArtifacts artifacts: "$SONARQUBE_REPORT", allowEmptyArchive: true, fingerprint: true
             }
         }
         stage('SAST - Semgrep Scan') {
